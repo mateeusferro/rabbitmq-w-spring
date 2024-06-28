@@ -1,38 +1,48 @@
-version: '1'
-
 services:
 
   receiver:
     build:
-      context: .
-      dockerfile: rabbitmq-w-spring-receiver/Dockerfile
+      context: ./rabbitmq-w-spring-receiver
+      dockerfile: ./Dockerfile
     depends_on:
       - rabbitmq
       - mysql
     environment:
-      - SPRING_DATASOURCE_URL=jdbc:mysql://localhost:3306/payment
+      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/payment
       - SPRING_DATASOURCE_USERNAME=root
       - SPRING_DATASOURCE_PASSWORD=root
       - SPRING_JPA_HIBERNATE_DDL_AUTO=none
       - SPRING_DATASOURCE.DRIVER-CLASS-NAME=com.mysql.cj.jdbc.Driver
-    ports:
-      - 8080:8080
+      - SPRING_RABBITMQ_HOST=rabbitmq
+      - SPRING_RABBITMQ_PORT=5672
+      - SPRING_RABBITMQ_USERNAME=root
+      - SPRING_RABBITMQ_PASSWORD=root
+      - SPRING_RABBITMQ_VIRTUAL-HOST=/
 
   sender:
     build:
-      context: .
-      dockerfile: rabbitmq-w-spring-sender/Dockerfile
+      context: ./rabbitmq-w-spring-sender
+      dockerfile: ./Dockerfile
     depends_on:
       - rabbitmq
       - mongodb
     environment:
-      - SPRING_DATA_MONGODB_HOST=mysql
+      - SPRING_DATA_MONGODB_AUTHENTICATION_DATABASE=admin
+      - SPRING_DATA_MONGODB_HOST=mongodb
+      - SPRING_DATA_MONGODB_AUTO-INDEX-CREATION=true
       - SPRING_DATA_MONGODB_PORT=27017
-      - SPRING_DATA_MONGODB_DATABASE=order
+      - SPRING_DATA_MONGODB_DATABASE=financing
       - SPRING_DATA_MONGODB_USERNAME=root
       - SPRING_DATA_MONGODB_PASSWORD=root
+      - SPRING_RABBITMQ_HOST=rabbitmq
+      - SPRING_RABBITMQ_PORT=5672
+      - SPRING_RABBITMQ_USERNAME=root
+      - SPRING_RABBITMQ_PASSWORD=root
+      - SPRING_RABBITMQ_VIRTUAL-HOST=/
+      - SPRING_RABBITMQ_QUEUE=payment
+
     ports:
-      - 8090:8080
+      - 8080:8080
 
   rabbitmq:
     image: rabbitmq:3.13-management
@@ -52,9 +62,11 @@ services:
         - 27017:27017
 
   mysql:
-    image: mysql:latest
+    image: mysql:8.0-debian
     environment:
       - MYSQL_ROOT_PASSWORD=root
       - MYSQL_DATABASE=payment
+    volumes:
+      - ./rabbitmq-w-spring-receiver/db:/docker-entrypoint-initdb.d/
     ports:
       - 3306:3306
